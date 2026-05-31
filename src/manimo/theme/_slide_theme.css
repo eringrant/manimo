@@ -1,0 +1,97 @@
+/* ============================================================================
+ * Base slide theme for marimo experiment decks.
+ *
+ * This file is GENERIC and non-proprietary: it ships in the public template so
+ * every experiment inherits the same 16:9-safe layout and typography. Branding
+ * (exact colors, fonts, logo) is layered ON TOP per-experiment by setting the
+ * CSS custom properties below — see the generated `<name>.theme.css`, which
+ * does `@import "_slide_theme.css";` and then overrides these variables.
+ *
+ * Only three CSS variables are part of marimo's stable public API
+ * (--marimo-*-font). Everything keyed on `.reveal` is reveal.js DOM and is
+ * best-effort: it works today but isn't a marimo-guaranteed selector, so keep
+ * brand overrides confined to the variables at the top where possible.
+ * ========================================================================== */
+
+:root {
+  /* --- Brand hooks (override these in <name>.theme.css) --- */
+  --brand: #1f6feb;            /* primary accent: headings, rules, emphasis   */
+  --brand-accent: #8957e5;     /* secondary accent: links, highlights         */
+  --brand-fg: #1c2024;         /* body text                                   */
+  --brand-bg: #ffffff;         /* slide background                            */
+  --brand-muted: #6b7280;      /* captions, footnotes, secondary text         */
+  --brand-logo: none;          /* set to url("logo.svg") to show a corner mark */
+  --brand-logo-w: 132px;
+  --brand-logo-h: 40px;
+
+  /* --- Fonts: the only stable marimo theming API. Neutral SYSTEM stack by
+   * default (no web-font request); a brand theme overrides these via _brand.css. */
+  --marimo-heading-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --marimo-text-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --marimo-monospace-font: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* --- 16:9 sizing knobs --- */
+  --slide-output-max-h: 72vh;  /* cap any single cell output so it can't
+                                  overflow the slide; content scrolls instead */
+}
+
+/* Slide surface (reveal.js — best-effort selectors). */
+.reveal,
+.reveal .slides {
+  background: var(--brand-bg);
+  color: var(--brand-fg);
+  font-family: var(--marimo-text-font);
+}
+
+.reveal h1,
+.reveal h2,
+.reveal h3,
+.reveal h4 {
+  font-family: var(--marimo-heading-font);
+  color: var(--brand);
+  letter-spacing: -0.01em;
+}
+
+.reveal a { color: var(--brand-accent); }
+
+.reveal code,
+.reveal pre {
+  font-family: var(--marimo-monospace-font);
+}
+
+/* The core 16:9 guard: a tall cell output (a big table, a wide plot, a long
+ * dataframe repr) would otherwise push the slide past the frame. Cap height
+ * and let it scroll within the slide rather than blowing out the layout. */
+[data-cell-role="output"] {
+  max-height: var(--slide-output-max-h);
+  overflow: auto;
+}
+
+/* Media should scale to the slide, never force horizontal scroll. */
+[data-cell-role="output"] img,
+[data-cell-role="output"] svg,
+[data-cell-role="output"] canvas,
+[data-cell-role="output"] .vega-embed {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Plotly fragment wrapper emitted by figure_html. */
+.reveal-plot {
+  width: 100%;
+}
+
+/* Per-slide corner logo. No-ops until --brand-logo is set by brand.css.
+ * Uses ::after on the slides container so it sits on every slide. */
+.reveal .slides::after {
+  content: "";
+  position: fixed;
+  bottom: 22px;
+  right: 28px;
+  width: var(--brand-logo-w);
+  height: var(--brand-logo-h);
+  background: var(--brand-logo) no-repeat center / contain;
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 50;
+}

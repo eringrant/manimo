@@ -1,0 +1,47 @@
+<!-- Slide deck <head> (injected by `marimo run`, run mode only). The base template
+     uses a system font stack (see _slide_theme.css), so there's no web-font request
+     here. When a brand theme is applied, the experiment scaffolder overwrites this
+     file with the brand font's <link> — it MUST keep the autoplay script below. -->
+
+<!-- Restart render_svg_autoplay SVGs on slide entry. marimo's run-mode reveal
+     bundles reveal.js without build_deck's `slidechanged` reparse hook, so a
+     CSS-autoplay SVG would finish its build-up at page load (all slides are
+     pre-rendered) and look static on arrival. We watch reveal's `present` class
+     and reparse the SVG, which restarts its @keyframes from the top. -->
+<script>
+  (function () {
+    "use strict";
+    function restart(node) {
+      if (!node || !node.querySelectorAll) return;
+      node.querySelectorAll("svg").forEach(function (svg) {
+        // Only autoplay SVGs carry the `svgfade` keyframes; fragments don't.
+        if (svg.innerHTML.indexOf("svgfade") !== -1) {
+          svg.innerHTML = svg.innerHTML; // reparse -> restart CSS animation
+        }
+      });
+    }
+    var watched = new WeakSet();
+    function watch(section) {
+      if (watched.has(section)) return;
+      watched.add(section);
+      new MutationObserver(function () {
+        if (section.classList.contains("present")) restart(section);
+      }).observe(section, { attributes: true, attributeFilter: ["class"] });
+      if (section.classList.contains("present")) restart(section);
+    }
+    function scan() {
+      document.querySelectorAll(".reveal .slides section").forEach(watch);
+    }
+    function boot() {
+      scan();
+      // Slides mount asynchronously after the kernel runs; keep scanning.
+      var root = document.querySelector(".reveal .slides") || document.body;
+      new MutationObserver(scan).observe(root, { childList: true, subtree: true });
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot);
+    } else {
+      boot();
+    }
+  })();
+</script>

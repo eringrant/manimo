@@ -1,0 +1,33 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Testing and coverage
+.pytest_cache/
+.hypothesis/
+htmlcov/
+.coverage
+*.cover
+
+# Tool caches
+.ruff_cache/
+.ty_cache/
+
+# OS
+.DS_Store
+
+# Marimo
+__marimo__/
+
+# Manim render output (Tex/, texts/, videos/ etc. dumped into the working dir)
+media/
+
+# Node
+node_modules/
