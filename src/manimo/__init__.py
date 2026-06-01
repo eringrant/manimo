@@ -15,8 +15,12 @@ Diagrams (Manim -> vector SVG; shared by both targets)
 In a live ``marimo run`` deck
 - ``svg_image`` — inline an SVG into a marimo cell so reveal.js can show it.
 
+Charts (live and export)
+- ``altair_theme`` — enable an Altair theme once so every chart inherits the deck's
+  font, size, and colors (no per-chart config); applies live and on export.
+
 Export a standalone reveal.js deck
-- ``figure_html`` — a Plotly figure -> an interactive HTML asset.
+- ``chart_html`` — an Altair / Vega-Lite chart -> an interactive HTML asset.
 - ``build_deck`` — package rendered assets into a self-contained ``deck.html``.
 """
 
@@ -30,11 +34,12 @@ from .anim import register_fonts  # noqa: E402
 from .anim import render_svg_autoplay  # noqa: E402
 from .anim import render_svg_fragments  # noqa: E402
 from .anim import svg_image  # noqa: E402
+from .reveal import altair_theme  # noqa: E402
 from .reveal import build_deck  # noqa: E402
-from .reveal import figure_html  # noqa: E402
+from .reveal import chart_html  # noqa: E402
 from .scaffold import init_deck  # noqa: E402
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
   "__version__",
@@ -47,7 +52,9 @@ __all__ = [
   "register_fonts",
   # live marimo deck
   "svg_image",
+  # charts (live + export)
+  "altair_theme",
   # reveal.js export
-  "figure_html",
+  "chart_html",
   "build_deck",
 ]

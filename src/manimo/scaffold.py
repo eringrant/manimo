@@ -43,7 +43,7 @@ def init_deck(dest: str | Path, *, name: str = "main", overwrite: bool = False) 
   """Scaffold a runnable starter slide deck in ``dest`` and return its notebook path.
 
   Writes ``<name>.py`` (a marimo slides notebook with a title slide, a Manim
-  build-up diagram, and an interactive Plotly chart), ``layouts/<name>.slides.json``
+  build-up diagram, and an interactive Altair chart), ``layouts/<name>.slides.json``
   (the slide layout), and copies the bundled theme next to it. Present it with
   ``marimo run <dest>/<name>.py`` or edit it with ``marimo edit``. Refuses to
   clobber an existing notebook unless ``overwrite=True``.
@@ -147,23 +147,19 @@ def _(diagram, mo, svg_image):
     return
 
 
-# Slide 3: an interactive Plotly chart.
+# Slide 3: an interactive Altair chart.
 @app.cell
 def _(mo):
-    import plotly.graph_objects as go
+    import altair as alt
 
-    _fig = go.Figure(
-        go.Scatter(
-            x=list(range(10)), y=[i * i for i in range(10)], mode="lines+markers"
-        )
+    _data = alt.Data(values=[{{"x": i, "y": i * i}} for i in range(10)])
+    _chart = (
+        alt.Chart(_data)
+        .mark_line(point=True)
+        .encode(x="x:Q", y="y:Q", tooltip=["x:Q", "y:Q"])
+        .properties(height=320, title="y = x squared")
     )
-    _fig.update_layout(
-        title="y = x squared",
-        height=340,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-    )
-    mo.vstack([mo.md("## An interactive chart"), mo.center(mo.ui.plotly(_fig))])
+    mo.vstack([mo.md("## An interactive chart"), mo.center(mo.ui.altair_chart(_chart))])
     return
 
 

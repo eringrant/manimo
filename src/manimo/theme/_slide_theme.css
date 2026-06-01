@@ -76,11 +76,6 @@
   height: auto;
 }
 
-/* Plotly fragment wrapper emitted by figure_html. */
-.reveal-plot {
-  width: 100%;
-}
-
 /* Per-slide corner logo. No-ops until --brand-logo is set by brand.css.
  * Uses ::after on the slides container so it sits on every slide. */
 .reveal .slides::after {

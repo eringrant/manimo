@@ -27,7 +27,7 @@ uv run marimo run mydeck/main.py        # present it (reveal.js)
 uv run marimo edit mydeck/main.py       # or edit it as a notebook
 ```
 
-`init` writes a deck with a title slide, a Manim build-up diagram, and a Plotly
+`init` writes a deck with a title slide, a Manim build-up diagram, and an Altair
 chart, the slide-layout JSON, and the bundled theme. marimo resolves a notebook's
 `css_file` / `html_head_file` relative to the notebook, so the theme files sit next
 to `main.py`.
@@ -76,12 +76,13 @@ either **live** (served by `marimo run`) or a **reveal** export (a standalone
 | Function | Purpose | Target |
 |---|---|---|
 | `svg_image(src, *, max_width=760)` | inline an SVG into a marimo cell | live |
-| `figure_html(fig, out, *, font=None)` | a Plotly figure → an interactive HTML asset | reveal |
+| `altair_theme(*, font=None, brand=None, palette=None, fontsize=None)` | enable an Altair theme once so every chart inherits the font, `fontsize`, single-series `brand` color, and categorical `palette` | live + reveal |
+| `chart_html(chart, out, *, width=760, height=340)` | an Altair/Vega-Lite chart → an interactive HTML asset (via altair's `to_html`) | reveal |
 | `build_deck(sections, out, *, title=, brand=, font=, google_fonts=)` | package assets into a standalone `deck.html` | reveal |
 
-In a live deck, charts are marimo's own `mo.ui.plotly`; `figure_html` is only for a
-reveal export. `render_svg_fragments` is reveal-only because live marimo ignores
-in-SVG fragments.
+In a live deck, charts are `mo.ui.altair_chart`; `chart_html` is only for a reveal
+export. `render_svg_fragments` is reveal-only because live marimo ignores in-SVG
+fragments.
 
 ## Docs
 
@@ -94,7 +95,7 @@ in-SVG fragments.
 - [marimo](https://marimo.io) — the reactive Python notebook manimo builds on.
 - [Manim](https://www.manim.community/) — the engine behind the vector diagrams.
 - [reveal.js](https://revealjs.com) — the framework the decks render to.
-- [Plotly](https://plotly.com/python/) — interactive charts (`figure_html`).
+- [Altair](https://altair-viz.github.io/) — interactive charts (`chart_html`).
 - [manim-slides](https://github.com/jeertmans/manim-slides) — a separate, unrelated project: slideshows built from Manim.
 
 ## AI Usage

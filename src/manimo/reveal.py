@@ -3,22 +3,24 @@
 The idea: render just the *assets* (charts and diagrams) into reveal-native files
 you drop into a reveal.js deck, rather than exporting whole slides.
 
-- ``figure_html``  — a Plotly figure → a self-contained, interactive HTML fragment
-  (plotly.js from CDN). No Chrome / kaleido needed; renders crisp + interactive in
-  reveal. This is the recommended chart asset.
+- ``chart_html`` — an Altair / Vega-Lite chart → a self-contained, interactive HTML
+  fragment (vega libraries from CDN, wired up by ``build_deck``). No Chrome /
+  kaleido needed; vector (SVG) and interactive (tooltips, pan/zoom) in reveal.
 - ``render_svg_fragments`` / ``render_svg_autoplay`` — Manim graphics → SVG
   (re-exported from ``.anim``). ``render_svg_fragments`` is the one that steps
   natively on spacebar in reveal.js.
 - ``svg_image`` — inline an SVG (re-exported from ``.anim``).
 
 Typical use: a chart/diagram cell displays in marimo AND writes its reveal asset,
-e.g. ``figure_html(fig, Path(__file__).parent / "reveal-assets" / "result.html")``.
-Collect the files in ``reveal-assets/`` and embed them in a reveal ``<section>``.
+e.g. ``chart_html(chart, Path(__file__).parent / "reveal-assets" / "result.html")``.
+Collect the files in ``reveal-assets/`` and embed them with ``build_deck``.
 """
 
 from __future__ import annotations
 
+import hashlib
 import html
+import json
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -29,7 +31,8 @@ from .anim import render_svg_fragments  # re-export so reveal assets are one imp
 from .anim import svg_image  # re-export so reveal assets are one import
 
 __all__ = [
-  "figure_html",
+  "chart_html",
+  "altair_theme",
   "build_deck",
   "register_fonts",
   "render_svg_fragments",
@@ -41,39 +44,86 @@ __all__ = [
 REVEAL_CDN = "https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist"
 
 
-def figure_html(
-  fig: Any,
-  out: str | Path,
-  *,
-  embeddable: bool = True,
-  include_plotlyjs: str = "cdn",
-  div_class: str = "reveal-plot",
-  font: str | None = None,
+def chart_html(
+  chart: Any, out: str | Path, *, width: int | None = 760, height: int | None = 340
 ) -> Path:
-  """Write a Plotly ``fig`` as an interactive HTML asset for reveal.js.
+  """Write an Altair chart as an interactive reveal.js fragment.
 
-  With ``embeddable=True`` (default) writes a fragment — a ``<div>`` + the plotly
-  script (plotly.js pulled from CDN) — which you can drop straight into a reveal
-  ``<section>``; it also renders on its own if opened directly. ``embeddable=False``
-  writes a full standalone HTML page. The figure autosizes to its container, so
-  set the figure's ``height`` and let width be 100%. Pass ``font`` to set the
-  chart's typeface (must also be loaded by the page); leave it ``None`` to use the
-  figure's default. The template imposes no specific font — supply your brand font.
+  Delegates to Altair's own ``Chart.to_html``, so the vega libraries it loads from
+  CDN always match the chart's Vega-Lite spec version (hand-rolling them risks a
+  schema/runtime mismatch). Vector (SVG renderer), interactive (tooltips, pan/zoom),
+  self-contained — no Python kernel, Chrome, or kaleido. Font/colors come from
+  ``altair_theme`` (or the chart's own config).
+
+  ``width`` / ``height`` are applied to the chart as fixed pixels — a fixed width is
+  reliable inside reveal's transformed slides, where responsive ``"container"`` width
+  measures 0. Pass ``None`` to keep the chart's own size.
   """
   out = Path(out)
   out.parent.mkdir(parents=True, exist_ok=True)
-  if font:
-    fig.update_layout(font=dict(family=f"{font}, system-ui, sans-serif"))
-  html = fig.to_html(
-    include_plotlyjs=include_plotlyjs,
-    full_html=not embeddable,
-    default_width="100%",
-    default_height="100%",
+
+  sized = {}
+  if width is not None:
+    sized["width"] = width
+  if height is not None:
+    sized["height"] = height
+  if sized:
+    chart = chart.properties(**sized)
+
+  vid = hashlib.md5(json.dumps(chart.to_dict()).encode()).hexdigest()[:8]  # noqa: S324
+  frag = chart.to_html(
+    fullhtml=False,
+    output_div=f"vega-{vid}",
+    embed_options={"renderer": "svg", "actions": False},
   )
-  if embeddable:
-    html = f'<div class="{div_class}" style="width:100%;height:100%;">{html}</div>'
-  out.write_text(html)
+  out.write_text(f'<div class="reveal-vega">{frag}</div>\n')
   return out
+
+
+def altair_theme(
+  *,
+  font: str | None = None,
+  brand: str | None = None,
+  palette: Sequence[str] | None = None,
+  fontsize: int | None = None,
+  name: str = "manimo",
+) -> dict[str, Any]:
+  """Register and enable an Altair theme so every chart inherits the deck's look.
+
+  Call once in a setup cell; charts then pick up these defaults with no per-chart
+  ``.configure``:
+
+  - ``font`` — applied to all chart text.
+  - ``brand`` — the default mark color, used by a **single-series** chart.
+  - ``palette`` — the categorical color **range**, used when a chart encodes by
+    ``color`` (i.e. multi-series). Give it the theme's data colors, e.g.
+    ``[primary, accent, muted]``.
+  - ``fontsize`` — base text size in px for axis/legend labels and titles (chart
+    titles get a modest bump). Vega's defaults (~10px) read small on a projected
+    slide; ~14-16 is comfortable.
+
+  The config travels in ``chart.to_dict()``, so it applies to a live
+  ``mo.ui.altair_chart`` AND to the ``chart_html`` reveal export. Returns the
+  theme's config dict.
+  """
+  import altair as alt
+
+  config: dict[str, Any] = {}
+  if font:
+    config["font"] = font
+  if brand:
+    config["mark"] = {"color": brand}
+  if palette:
+    config["range"] = {"category": list(palette)}
+  if fontsize:
+    axis = config.setdefault("axis", {})
+    axis["labelFontSize"] = axis["titleFontSize"] = fontsize
+    legend = config.setdefault("legend", {})
+    legend["labelFontSize"] = legend["titleFontSize"] = fontsize
+    config.setdefault("title", {})["fontSize"] = round(fontsize * 1.25)
+  # altair types the name as LiteralString, but any str works (it's a registry key).
+  alt.theme.register(name, enable=True)(lambda: {"config": config})  # ty: ignore[invalid-argument-type]
+  return config
 
 
 def _read_asset(asset: str | Path) -> str:
@@ -105,10 +155,11 @@ def build_deck(
   "autoplay": bool}``. ``asset`` may be a path to an ``.svg``/``.html`` asset
   (read inline) or raw markup. Prewires reveal.js (CDN), the ``brand`` heading
   color, the ``font`` family, and the ``slidechanged`` hook that restarts
-  CSS-autoplay SVGs (mark those sections ``"autoplay": True``). Pass your brand
+  CSS-autoplay SVGs (mark those sections ``"autoplay": True``). ``chart_html``
+  fragments carry their own version-matched vega libraries. Pass your brand
   color/font and a ``google_fonts`` stylesheet URL to load it; defaults to a
   neutral system stack. SVGs with ``<g class="fragment">`` step natively on
-  spacebar; Plotly fragments render interactively.
+  spacebar; ``chart_html`` charts are interactive.
   """
   out = Path(out)
   out.parent.mkdir(parents=True, exist_ok=True)
@@ -123,6 +174,7 @@ def build_deck(
     cls = ' class="autoplay"' if s.get("autoplay") else ""
     secs.append(f'<section{cls}>{head}<div class="asset">{body}</div></section>')
 
+  body_html = "".join(secs)
   fonts_link = (
     f'<link rel="preconnect" href="https://fonts.googleapis.com">'
     f'<link rel="stylesheet" href="{google_fonts}">'
@@ -138,10 +190,12 @@ def build_deck(
   .reveal h1, .reveal h2, .reveal h3 {{ font-family: {font}; color: {brand}; }}
   .reveal .asset {{ max-width: 860px; margin: 0 auto; }}
   .reveal .asset svg {{ width: 100%; height: auto; }}
-  .reveal .reveal-plot {{ width: 100%; }}
+  /* chart_html charts render at a fixed pixel size; keep it (don't stretch). */
+  .reveal .reveal-vega {{ display: flex; justify-content: center; }}
+  .reveal .reveal-vega svg {{ width: auto; height: auto; max-width: 100%; }}
 </style></head><body>
 <div class="reveal"><div class="slides">
-{"".join(secs)}
+{body_html}
 </div></div>
 <script src="{REVEAL_CDN}/reveal.js"></script>
 <script>

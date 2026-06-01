@@ -3,7 +3,7 @@
 The render-from-Manim helpers need the optional ``anim`` group (manim + system
 cairo/pango), so they aren't exercised here. What we lock down is (1) the package
 imports with manim ABSENT, and (2) the pure-Python asset/packaging paths that only
-need plotly.
+need altair.
 """
 
 import builtins
@@ -32,17 +32,53 @@ def test_anim_imports_without_manim(monkeypatch):
   assert hasattr(anim, "svg_image")
 
 
-def test_figure_html_writes_plotly_fragment(tmp_path):
-  """figure_html writes a self-contained interactive Plotly HTML fragment."""
-  import plotly.graph_objects as go
+def test_chart_html_writes_vega_fragment(tmp_path):
+  """chart_html writes a self-contained vega-embed fragment via altair's to_html."""
+  import altair as alt
 
-  from manimo.reveal import figure_html
+  from manimo import chart_html
 
-  fig = go.Figure(go.Scatter(x=[1, 2, 3], y=[1, 4, 9]))
-  out = figure_html(fig, tmp_path / "chart.html")
-  html = out.read_text()
-  assert out.exists()
-  assert "plotly" in html.lower()
+  data = alt.Data(values=[{"x": 1, "y": 1}, {"x": 2, "y": 4}, {"x": 3, "y": 9}])
+  chart = alt.Chart(data).mark_line().encode(x="x:Q", y="y:Q")
+  frag = chart_html(chart, tmp_path / "chart.html", width=600, height=300).read_text()
+  assert "vegaEmbed" in frag
+  assert "reveal-vega" in frag  # the centering wrapper
+  assert "vega@" in frag  # version-matched CDN, emitted by altair's to_html
+  assert "600" in frag and "300" in frag  # the fixed size reached the inlined spec
+
+
+def test_altair_theme_registers_enabled_theme():
+  """altair_theme enables a theme; charts then carry the font/brand in to_dict."""
+  import altair as alt
+
+  from manimo import altair_theme
+
+  try:
+    cfg = altair_theme(
+      font="Georgia",
+      brand="#003262",
+      palette=["#003262", "#fdb515"],
+      fontsize=15,
+      name="t-test",
+    )
+    assert cfg["font"] == "Georgia"
+    assert cfg["mark"] == {"color": "#003262"}
+    assert cfg["range"] == {"category": ["#003262", "#fdb515"]}
+    assert cfg["axis"]["labelFontSize"] == 15
+    assert cfg["legend"]["titleFontSize"] == 15
+    assert cfg["title"]["fontSize"] == round(15 * 1.25)
+    chart = (
+      alt.Chart(alt.Data(values=[{"x": 1, "y": 1}]))
+      .mark_point()
+      .encode(x="x:Q", y="y:Q")
+    )
+    spec = chart.to_dict()
+    assert spec["config"]["font"] == "Georgia"
+    assert spec["config"]["mark"]["color"] == "#003262"
+    assert spec["config"]["range"]["category"] == ["#003262", "#fdb515"]
+    assert spec["config"]["axis"]["labelFontSize"] == 15
+  finally:
+    alt.theme.enable("default")  # don't leak the enabled theme to other tests
 
 
 def test_build_deck_assembles_sections(tmp_path):
@@ -171,12 +207,23 @@ def test_build_deck_accepts_raw_markup_asset(tmp_path):
   assert markup in page
 
 
-def test_figure_html_full_page(tmp_path):
-  """embeddable=False writes a standalone HTML page."""
-  import plotly.graph_objects as go
+def test_build_deck_embeds_chart_fragment(tmp_path):
+  """A chart_html asset (carrying its own matched CDN) is embedded into the deck."""
+  import altair as alt
 
-  from manimo import figure_html
+  from manimo import build_deck
+  from manimo import chart_html
 
-  fig = go.Figure(go.Bar(x=["a"], y=[1]))
-  page = figure_html(fig, tmp_path / "p.html", embeddable=False).read_text()
-  assert "<html" in page.lower()
+  chart = (
+    alt.Chart(alt.Data(values=[{"x": 1, "y": 1}])).mark_point().encode(x="x:Q", y="y:Q")
+  )
+  asset = chart_html(chart, tmp_path / "c.html")
+  with_chart = build_deck(
+    [{"title": "C", "asset": asset}], tmp_path / "d1.html"
+  ).read_text()
+  assert "vegaEmbed" in with_chart and "vega@" in with_chart
+
+  no_chart = build_deck(
+    [{"title": "S", "asset": "<svg/>"}], tmp_path / "d2.html"
+  ).read_text()
+  assert "vegaEmbed" not in no_chart  # build_deck adds no chart embed on its own

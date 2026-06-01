@@ -9,17 +9,17 @@ reveal-native files and package them. The helpers are in `manimo`.
 ```python
 from pathlib import Path
 
-import plotly.graph_objects as go
+import altair as alt
 from manim import DOWN, RIGHT, Arrow, Circle, Square, Text
 
-from manimo import figure_html, render_svg_autoplay, render_svg_fragments
+from manimo import chart_html, render_svg_autoplay, render_svg_fragments
 
 A = Path(__file__).parent / "reveal-assets"
 
-# Plotly chart -> interactive HTML fragment (plotly.js via CDN; no Chrome needed)
-fig = go.Figure(go.Bar(x=["a", "b", "c"], y=[3, 1, 2]))
-fig.update_layout(height=360)
-figure_html(fig, A / "result.html")
+# Altair chart -> interactive vega-embed fragment (vega from CDN; no Chrome needed)
+data = alt.Data(values=[{"x": "a", "y": 3}, {"x": "b", "y": 1}, {"x": "c", "y": 2}])
+chart = alt.Chart(data).mark_bar().encode(x="x:N", y="y:Q", tooltip=["x:N", "y:Q"])
+chart_html(chart, A / "result.html")
 
 # Manim diagram -> SVG. Each mobject in the list is one build-up step.
 box = Square(color="#1f6feb").scale(0.8)
@@ -31,10 +31,11 @@ render_svg_fragments([box, arrow, ball, label], A / "mechanism.svg")  # steps on
 render_svg_autoplay([box, arrow, ball, label], A / "intuition.svg")   # CSS build-up
 ```
 
-Build figures with `plotly.graph_objects` (`go.Figure`); it needs no extra
-dependencies. `plotly.express` (`px.bar(...)`) also works but requires pandas
-(`uv add pandas`). The asset files are written when this code runs — put it in a
-chart/diagram cell, or in a small script you run to regenerate `reveal-assets/`.
+Build charts with `altair` straight from a `polars` DataFrame (`alt.Chart(df)`) or
+inline `alt.Data(values=[...])`. `chart_html` writes them at a **fixed** pixel size
+(`width`/`height`) — responsive `"container"` width measures 0 inside reveal slides.
+The asset files are written when this code runs — put it in a chart/diagram cell, or
+in a small script you run to regenerate `reveal-assets/`.
 
 ## Assemble the deck
 
@@ -69,10 +70,12 @@ Each `sections` entry is a dict:
 | `asset` | yes | path to an `.svg`/`.html` file (read inline), or raw HTML/markup |
 | `autoplay` | no | `True` to restart a `render_svg_autoplay` SVG on each entry to the slide |
 
-Signatures: `figure_html(fig, out, *, font=None)` and `build_deck(sections, out, *,
-title=None, subtitle=None, brand="#1f6feb", font="system-ui, sans-serif",
-google_fonts=None, transition="none")`. Pass `brand`/`font` to match your theme;
-for Manim text, call `register_fonts(<dir>)` before building `Text(font=...)`.
+Signatures: `chart_html(chart, out, *, width=760, height=340)` and
+`build_deck(sections, out, *, title=None, subtitle=None, brand="#1f6feb",
+font="system-ui, sans-serif", google_fonts=None, transition="none")`. Charts inherit
+their font/colors from `altair_theme` (set once); pass `brand`/`font` to `build_deck`
+to match your theme, and for Manim text call `register_fonts(<dir>)` before building
+`Text(font=...)`.
 `build_deck` packages assets only — it doesn't reproduce arbitrary marimo cell
 outputs (`mo.ui` widgets, tables), so render those as a chart or SVG first.
 
@@ -80,7 +83,7 @@ outputs (`mo.ui` widgets, tables), so render those as a chart or SVG first.
 
 | Asset | Behavior |
 |---|---|
-| `figure_html` (Plotly) | interactive (hover/zoom), vector |
+| `chart_html` (Altair) | interactive (tooltips, pan/zoom), vector SVG |
 | `render_svg_fragments` | steps on spacebar, reverses on back-nav |
 | `render_svg_autoplay` | plays on entry (restarted by the hook `build_deck` wires) |
 
