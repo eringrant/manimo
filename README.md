@@ -76,7 +76,9 @@ either **live** (served by `marimo run`) or a **reveal** export (a standalone
 | Function | Purpose | Target |
 |---|---|---|
 | `svg_image(src, *, max_width=760)` | inline an SVG into a marimo cell | live |
-| `altair_theme(*, font=None, brand=None, palette=None, fontsize=None)` | enable an Altair theme once so every chart inherits the font, `fontsize`, single-series `brand` color, and categorical `palette` | live + reveal |
+| `altair_theme(*, font=None, palette=tol.bright, color=None, fontsize=None)` | enable an Altair theme once so every chart inherits the font, `fontsize`, categorical `palette` (a `Palette` or list; defaults to a colorblind-safe Tol set), and single-series mark `color` (defaults to the palette's first color) | live + reveal |
+| `Palette(colors)` / `tol.<name>` | a categorical-palette dataclass + Paul Tol's colorblind-safe sets (`tol.bright`, `tol.muted`, `tol.high_contrast`, ...) | live + reveal |
+| `tol_colormap(name="sunset", n=9)` | Paul Tol sequential/diverging colormaps sampled to hex lists (for a continuous scale) | live + reveal |
 | `chart_html(chart, out, *, width=760, height=340)` | an Altair/Vega-Lite chart → an interactive HTML asset (via altair's `to_html`) | reveal |
 | `build_deck(sections, out, *, title=, brand=, font=, google_fonts=)` | package assets into a standalone `deck.html` | reveal |
 

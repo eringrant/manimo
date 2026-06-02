@@ -29,6 +29,8 @@ from .anim import register_fonts  # re-export so reveal assets are one import
 from .anim import render_svg_autoplay  # re-export so reveal assets are one import
 from .anim import render_svg_fragments  # re-export so reveal assets are one import
 from .anim import svg_image  # re-export so reveal assets are one import
+from .colors import Palette
+from .colors import tol
 
 __all__ = [
   "chart_html",
@@ -83,8 +85,8 @@ def chart_html(
 def altair_theme(
   *,
   font: str | None = None,
-  brand: str | None = None,
-  palette: Sequence[str] | None = None,
+  palette: Palette | Sequence[str] | None = tol.bright,
+  color: str | None = None,
   fontsize: int | None = None,
   name: str = "manimo",
 ) -> dict[str, Any]:
@@ -94,10 +96,14 @@ def altair_theme(
   ``.configure``:
 
   - ``font`` — applied to all chart text.
-  - ``brand`` — the default mark color, used by a **single-series** chart.
   - ``palette`` — the categorical color **range**, used when a chart encodes by
-    ``color`` (i.e. multi-series). Give it the theme's data colors, e.g.
-    ``[primary, accent, muted]``.
+    ``color`` (i.e. multi-series). A ``Palette`` (e.g. ``manimo.tol.muted`` or your
+    own ``Palette([...])``) or a plain list of colors. Defaults to ``tol.bright``, a
+    colorblind-safe Paul Tol set; pass ``None`` for Vega's own default palette.
+  - ``color`` — the mark color for a **single-series** chart. Defaults to the
+    palette's first color, so single- and multi-series charts stay in the same
+    colorblind-safe family. (Brand colors are for deck accents — headings, links —
+    not chart data; keep them out of here.)
   - ``fontsize`` — base text size in px for axis/legend labels and titles (chart
     titles get a modest bump). Vega's defaults (~10px) read small on a projected
     slide; ~14-16 is comfortable.
@@ -111,10 +117,21 @@ def altair_theme(
   config: dict[str, Any] = {}
   if font:
     config["font"] = font
-  if brand:
-    config["mark"] = {"color": brand}
-  if palette:
-    config["range"] = {"category": list(palette)}
+  colors: list[str] = []
+  if palette is not None:
+    if isinstance(palette, str):
+      raise TypeError(
+        f"palette should be a Palette (e.g. manimo.tol.muted) or a list of colors, "
+        f"not the string {palette!r}"
+      )
+    colors = list(palette)
+  if colors:
+    config["range"] = {"category": colors}
+  # Single-series mark: an explicit `color`, else the palette's first color, so a
+  # lone series stays in the same family as a multi-series chart.
+  mark = color if color is not None else (colors[0] if colors else None)
+  if mark:
+    config["mark"] = {"color": mark}
   if fontsize:
     axis = config.setdefault("axis", {})
     axis["labelFontSize"] = axis["titleFontSize"] = fontsize

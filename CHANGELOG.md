@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.2
+
+A colorblind-safe color model for charts and diagrams, with a typed palette interface.
+
+- New `Palette(colors)` dataclass and `tol` namespace (`tol.bright`, `tol.muted`,
+  `tol.high_contrast`, ...) of Paul Tol's colorblind-safe sets — a typed palette
+  interface for `altair_theme(palette=...)` (no magic scheme-name strings; a bare
+  string now raises with guidance). The qualitative sets are vendored (so `import
+  manimo` stays cheap), and a test asserts they match the `tol-colors` package.
+- **`altair_theme` color model** (breaking): signature is now
+  `(*, font=None, palette=tol.bright, color=None, fontsize=None)` — the `brand`
+  parameter is renamed to **`color`**. All chart colors now come from the Tol palette:
+  `palette` defaults to the colorblind-safe `tol.bright`, and the single-series mark
+  `color` defaults to the palette's first color. Brand colors are reserved for deck
+  accents (headings/links), not chart data.
+- New `tol_colormap(name, n)` — Paul Tol sequential/diverging colormaps sampled to a
+  hex list, for a continuous color scale (via the `tol-colors` dependency, lazily
+  imported). Validates `n >= 1`.
+- An empty palette now opts out of both the category range and the default mark.
+
 ## 0.1.1
 
 Switch chart rendering from Plotly to **Altair / Vega-Lite**.

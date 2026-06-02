@@ -2,10 +2,11 @@
 description = "Turn marimo notebooks into reveal.js slide decks with Manim (SVG) and Altair chart assets."
 name = "manimo"
 requires-python = ">=3.10"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
   "marimo>=0.18.4",
   "altair>=5.5.0",
+  "tol-colors>=2.0",
   "manim>=0.18",
   "manim-mobject-svg>=0.5",
 ]

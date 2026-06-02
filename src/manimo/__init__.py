@@ -17,7 +17,12 @@ In a live ``marimo run`` deck
 
 Charts (live and export)
 - ``altair_theme`` — enable an Altair theme once so every chart inherits the deck's
-  font, size, and colors (no per-chart config); applies live and on export.
+  font, size, and colors (no per-chart config); applies live and on export. Charts
+  default to a colorblind-safe Paul Tol palette.
+- ``Palette`` / ``tol`` — a categorical-palette dataclass and Paul Tol's
+  colorblind-safe sets (``tol.bright``, ``tol.muted``, ...) for ``altair_theme``.
+- ``tol_colormap`` — Paul Tol sequential/diverging colormaps as hex lists (for a
+  continuous color scale).
 
 Export a standalone reveal.js deck
 - ``chart_html`` — an Altair / Vega-Lite chart -> an interactive HTML asset.
@@ -34,12 +39,15 @@ from .anim import register_fonts  # noqa: E402
 from .anim import render_svg_autoplay  # noqa: E402
 from .anim import render_svg_fragments  # noqa: E402
 from .anim import svg_image  # noqa: E402
+from .colors import Palette  # noqa: E402
+from .colors import tol  # noqa: E402
+from .colors import tol_colormap  # noqa: E402
 from .reveal import altair_theme  # noqa: E402
 from .reveal import build_deck  # noqa: E402
 from .reveal import chart_html  # noqa: E402
 from .scaffold import init_deck  # noqa: E402
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = [
   "__version__",
@@ -54,6 +62,9 @@ __all__ = [
   "svg_image",
   # charts (live + export)
   "altair_theme",
+  "Palette",
+  "tol",
+  "tol_colormap",
   # reveal.js export
   "chart_html",
   "build_deck",

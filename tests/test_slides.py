@@ -48,7 +48,7 @@ def test_chart_html_writes_vega_fragment(tmp_path):
 
 
 def test_altair_theme_registers_enabled_theme():
-  """altair_theme enables a theme; charts then carry the font/brand in to_dict."""
+  """altair_theme enables a theme; charts then carry the font/color in to_dict."""
   import altair as alt
 
   from manimo import altair_theme
@@ -56,13 +56,13 @@ def test_altair_theme_registers_enabled_theme():
   try:
     cfg = altair_theme(
       font="Georgia",
-      brand="#003262",
       palette=["#003262", "#fdb515"],
+      color="#222222",
       fontsize=15,
       name="t-test",
     )
     assert cfg["font"] == "Georgia"
-    assert cfg["mark"] == {"color": "#003262"}
+    assert cfg["mark"] == {"color": "#222222"}
     assert cfg["range"] == {"category": ["#003262", "#fdb515"]}
     assert cfg["axis"]["labelFontSize"] == 15
     assert cfg["legend"]["titleFontSize"] == 15
@@ -74,11 +74,118 @@ def test_altair_theme_registers_enabled_theme():
     )
     spec = chart.to_dict()
     assert spec["config"]["font"] == "Georgia"
-    assert spec["config"]["mark"]["color"] == "#003262"
+    assert spec["config"]["mark"]["color"] == "#222222"
     assert spec["config"]["range"]["category"] == ["#003262", "#fdb515"]
     assert spec["config"]["axis"]["labelFontSize"] == 15
   finally:
     alt.theme.enable("default")  # don't leak the enabled theme to other tests
+
+
+def test_altair_theme_color_defaults_to_first_palette_color():
+  """With no explicit color, the single-series mark is the palette's first color."""
+  import altair as alt
+
+  from manimo import altair_theme
+  from manimo import tol
+
+  try:
+    cfg = altair_theme(palette=tol.muted, name="t-color")
+    assert cfg["mark"] == {"color": tol.muted[0]}
+  finally:
+    alt.theme.enable("default")
+
+
+def test_altair_theme_empty_palette_sets_no_range_or_mark():
+  """An empty palette opts out of both the category range and the default mark."""
+  import altair as alt
+
+  from manimo import Palette
+  from manimo import altair_theme
+
+  try:
+    cfg = altair_theme(palette=Palette([]), name="t-empty")
+    assert "range" not in cfg
+    assert "mark" not in cfg
+  finally:
+    alt.theme.enable("default")
+
+
+def test_vendored_palettes_match_tol_colors():
+  """The vendored Tol hex stay in lockstep with the tol-colors package (no drift)."""
+  import tol_colors
+
+  from manimo import tol
+  from manimo.colors import _TOL_SETS
+
+  for name, colors in _TOL_SETS.items():
+    expected = tuple(str(c) for c in tol_colors.colorsets[name])
+    assert colors == expected, f"vendored {name!r} drifted from tol_colors"
+    assert tuple(getattr(tol, name).colors) == expected
+
+
+def test_tol_colormap_rejects_nonpositive_n():
+  """tol_colormap validates n >= 1 instead of silently returning one color."""
+  import pytest
+
+  from manimo import tol_colormap
+
+  with pytest.raises(ValueError, match="n must be"):
+    tol_colormap("sunset", n=0)
+
+
+def test_tol_palette_dataclass_and_colormap():
+  """tol.<name> is an iterable Palette; tol_colormap returns chart-ready hex."""
+  from manimo import Palette
+  from manimo import tol
+  from manimo import tol_colormap
+
+  assert isinstance(tol.bright, Palette)
+  assert len(tol.bright) >= 5
+  assert all(c.startswith("#") for c in tol.bright)
+  assert list(tol.muted) == list(tol.muted.colors)  # iterable
+  assert tol.muted[0] == tol.muted.colors[0]  # indexable (for diagram marks)
+
+  cmap = tol_colormap("sunset", n=5)
+  assert len(cmap) == 5
+  assert all(c.startswith("#") for c in cmap)
+
+
+def test_altair_theme_defaults_to_tol_bright():
+  """With no palette, charts get the colorblind-safe Tol 'bright' set."""
+  import altair as alt
+
+  from manimo import altair_theme
+  from manimo import tol
+
+  try:
+    cfg = altair_theme(name="t-default")
+    assert cfg["range"]["category"] == list(tol.bright.colors)
+  finally:
+    alt.theme.enable("default")
+
+
+def test_altair_theme_accepts_palette_dataclass():
+  """altair_theme(palette=tol.muted) uses the Palette's colors."""
+  import altair as alt
+
+  from manimo import altair_theme
+  from manimo import tol
+
+  try:
+    cfg = altair_theme(palette=tol.muted, name="t-muted")
+    assert cfg["range"]["category"] == list(tol.muted.colors)
+  finally:
+    alt.theme.enable("default")
+
+
+def test_altair_theme_rejects_string_palette():
+  """A bare string is no longer accepted — the error points to tol.<name>."""
+  import pytest
+
+  from manimo import altair_theme
+
+  with pytest.raises(TypeError, match="manimo.tol"):
+    altair_theme(palette="muted", name="t-str")
 
 
 def test_build_deck_assembles_sections(tmp_path):
